@@ -1,0 +1,8 @@
+@EndUserText.label: 'Enrollment Status'
+@AbapCatalog.domainFixedValues: [
+  { fixedValue: 'O', description: 'Open'      },
+  { fixedValue: 'S', description: 'Submitted' },
+  { fixedValue: 'A', description: 'Approved'  },
+  { fixedValue: 'R', description: 'Rejected'  }
+]
+define domain ZCUTM_D_STATUS char( 1 );

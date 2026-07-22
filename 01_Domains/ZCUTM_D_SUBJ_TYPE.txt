@@ -1,0 +1,7 @@
+@EndUserText.label: 'Subject Type'
+@AbapCatalog.domainFixedValues: [
+  { fixedValue: 'C', description: 'Core'         },
+  { fixedValue: 'E', description: 'Elective'     },
+  { fixedValue: 'O', description: 'Open Elective'}
+]
+define domain ZCUTM_D_SUBJ_TYPE char( 1 );

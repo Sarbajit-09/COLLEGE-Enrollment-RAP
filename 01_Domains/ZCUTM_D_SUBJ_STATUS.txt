@@ -1,0 +1,7 @@
+@EndUserText.label: 'Subject Registration Status'
+@AbapCatalog.domainFixedValues: [
+  { fixedValue: 'R', description: 'Registered' },
+  { fixedValue: 'D', description: 'Dropped'    },
+  { fixedValue: 'W', description: 'Waitlisted' }
+]
+define domain ZCUTM_D_SUBJ_STATUS char( 1 );
