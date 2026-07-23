@@ -1,0 +1,23 @@
+@EndUserText.label: 'CUTM Student Master'
+@AbapCatalog.enhancement.category: #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory: #TRANSPARENT
+@AbapCatalog.deliveryClass: #A
+@AbapCatalog.dataMaintenance: #ALLOWED
+
+define table zcutm_student {
+
+  key client         : abap.clnt not null;
+  key student_id     : abap.char(12) not null;
+
+  first_name         : abap.char(30);
+  last_name          : abap.char(30);
+  full_name          : abap.char(60);
+  dob                : abap.dats;
+  mobile             : abap.char(15);
+  email              : abap.char(60);
+  program_code       : abap.char(20);
+  department_id      : abap.char(6);
+  batch_year         : abap.numc(4);
+  category_code      : abap.char(5);
+
+}

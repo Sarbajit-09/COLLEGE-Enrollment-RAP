@@ -1,0 +1,43 @@
+@EndUserText.label: 'CUTM Course Enrollment Header'
+@AbapCatalog.enhancement.category: #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory: #TRANSPARENT
+@AbapCatalog.deliveryClass: #A
+@AbapCatalog.dataMaintenance: #RESTRICTED
+
+define table zcutm_enroll {
+
+  key client            : abap.clnt not null;
+  key enrollment_id     : abap.numc(10) not null;
+
+  student_id            : abap.char(12) not null;
+  department_id         : abap.char(6) not null;
+  program_code          : abap.char(20) not null;
+  semester              : abap.numc(2) not null;
+  acad_year             : abap.char(9);
+
+  @Semantics.amount.currencyCode: 'currency_code'
+  annual_fee            : abap.curr(15,2);
+  currency_code         : abap.cuky;
+
+  total_credits         : abap.dec(4,1);
+  status                : zcutm_d_status;
+  reject_reason         : abap.char(255);
+  sem_start             : abap.dats;
+  sem_end               : abap.dats;
+
+  @Semantics.user.createdBy: true
+  created_by            : abap.char(12);
+
+  @Semantics.systemDateTime.createdAt: true
+  created_at            : abap.utcl;
+
+  @Semantics.user.lastChangedBy: true
+  last_changed_by       : abap.char(12);
+
+  @Semantics.systemDateTime.lastChangedAt: true
+  last_changed_at       : abap.utcl;
+
+  @Semantics.systemDateTime.localInstanceLastChangedAt: true
+  local_last_changed_at : abap.utcl;
+
+}

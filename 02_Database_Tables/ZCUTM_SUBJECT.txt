@@ -1,0 +1,29 @@
+@EndUserText.label: 'CUTM Subject Registration Line Item'
+@AbapCatalog.enhancement.category: #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory: #TRANSPARENT
+@AbapCatalog.deliveryClass: #A
+@AbapCatalog.dataMaintenance: #RESTRICTED
+
+define table zcutm_subject {
+
+  key client            : abap.clnt not null;
+  key enrollment_id     : abap.numc(10) not null;
+  key subject_id        : abap.numc(4) not null;
+
+  course_code           : abap.char(10) not null;
+  course_name           : abap.char(60);
+  school_id             : abap.char(6);
+  credits               : abap.dec(3,1);
+  subject_type          : zcutm_d_subj_type;
+  subject_status        : zcutm_d_subj_status;
+  grade                 : abap.char(2);
+  faculty_id            : abap.char(12);
+  class_room            : abap.char(10);
+
+  @Semantics.systemDateTime.lastChangedAt: true
+  last_changed_at       : abap.utcl;
+
+  @Semantics.systemDateTime.localInstanceLastChangedAt: true
+  local_last_changed_at : abap.utcl;
+
+}

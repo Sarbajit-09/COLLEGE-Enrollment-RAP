@@ -1,0 +1,18 @@
+@EndUserText.label: 'CUTM Department Master'
+@AbapCatalog.enhancement.category: #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory: #TRANSPARENT
+@AbapCatalog.deliveryClass: #A
+@AbapCatalog.dataMaintenance: #ALLOWED
+
+define table zcutm_dept {
+
+  key client              : abap.clnt not null;
+  key department_id       : abap.char(6) not null;
+
+  department_name         : abap.char(60);
+  abbreviation            : abap.char(10);
+  dean_name               : abap.char(60);
+  max_credits_per_sem     : abap.dec(3,1);
+  contact_email           : abap.char(60);
+
+}

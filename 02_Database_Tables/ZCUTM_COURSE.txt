@@ -1,0 +1,23 @@
+@EndUserText.label: 'CUTM Course Catalogue'
+@AbapCatalog.enhancement.category: #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory: #TRANSPARENT
+@AbapCatalog.deliveryClass: #A
+@AbapCatalog.dataMaintenance: #ALLOWED
+
+define table zcutm_course {
+
+  key client              : abap.clnt not null;
+  key course_code         : abap.char(10) not null;
+
+  course_name             : abap.char(60);
+  school_id               : abap.char(6);
+  credits                 : abap.dec(3,1);
+  subject_type            : zcutm_d_subj_type;
+  max_seats               : abap.int4;
+  semester_applicable     : abap.numc(2);
+
+  @Semantics.amount.currencyCode: 'currency_code'
+  annual_fee              : abap.curr(15,2);
+  currency_code           : abap.cuky;
+
+}
