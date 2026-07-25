@@ -1,0 +1,33 @@
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'Interface View - CUTM Subject'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+  serviceQuality: #X,
+  sizeCategory: #S,
+  dataClass: #MIXED
+}
+
+define view entity ZI_CUTMSubject_108
+  as select from zcutm_subject
+
+  association to parent ZI_CUTMEnrollment_108 as _Enrollment
+    on $projection.EnrollmentId = _Enrollment.EnrollmentId
+
+{
+  key enrollment_id         as EnrollmentId,
+  key subject_id            as SubjectId,
+      course_code           as CourseCode,
+      course_name           as CourseName,
+      school_id             as SchoolId,
+      credits               as Credits,
+      subject_type          as SubjectType,
+      subject_status        as SubjectStatus,
+      grade                 as Grade,
+      faculty_id            as FacultyId,
+      class_room            as ClassRoom,
+      last_changed_at       as LastChangedAt,
+      local_last_changed_at as LocalLastChangedAt,
+
+      _Enrollment
+}

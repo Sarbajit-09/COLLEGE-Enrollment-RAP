@@ -1,0 +1,37 @@
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'Interface View - CUTM Enrollment'
+@Metadata.ignorePropagatedAnnotations: true
+@ObjectModel.usageType:{
+  serviceQuality: #X,
+  sizeCategory: #S,
+  dataClass: #MIXED
+}
+
+define root view entity ZI_CUTMEnrollment_108
+  as select from zcutm_enroll
+
+  composition [0..*] of ZI_CUTMSubject_108 as _Subject
+
+{
+  key enrollment_id         as EnrollmentId,
+      student_id            as StudentId,
+      department_id         as DepartmentId,
+      program_code          as ProgramCode,
+      semester              as Semester,
+      acad_year             as AcadYear,
+      annual_fee            as AnnualFee,
+      currency_code         as CurrencyCode,
+      total_credits         as TotalCredits,
+      status                as Status,
+      reject_reason         as RejectReason,
+      sem_start             as SemStart,
+      sem_end               as SemEnd,
+      created_by            as CreatedBy,
+      created_at            as CreatedAt,
+      last_changed_by       as LastChangedBy,
+      last_changed_at       as LastChangedAt,
+      local_last_changed_at as LocalLastChangedAt,
+
+      _Subject
+}
