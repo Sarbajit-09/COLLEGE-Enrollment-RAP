@@ -1,0 +1,25 @@
+@AbapCatalog.viewEnhancementCategory: [#NONE]
+@AccessControl.authorizationCheck: #NOT_REQUIRED
+@EndUserText.label: 'Projection View - CUTM Subject'
+@Metadata.ignorePropagatedAnnotations: true
+
+define view entity ZC_CUTMSubject_108
+  as projection on ZI_CUTMSubject_108
+
+{
+  key EnrollmentId,
+  key SubjectId,
+      CourseCode,
+      CourseName,
+      SchoolId,
+      Credits,
+      SubjectType,
+      SubjectStatus,
+      Grade,
+      FacultyId,
+      ClassRoom,
+      LastChangedAt,
+      LocalLastChangedAt,
+
+      _Enrollment : redirected to parent ZC_CUTMEnrollment_108
+}
