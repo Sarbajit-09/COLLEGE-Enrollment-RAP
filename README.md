@@ -1,5 +1,5 @@
 # COLLEGE Course Enrollment Management System
-## SAP ABAP RAP Project — Exercises 01 to 10
+## SAP ABAP RAP Project — Exercises 01 to 09
 
 ---
 
