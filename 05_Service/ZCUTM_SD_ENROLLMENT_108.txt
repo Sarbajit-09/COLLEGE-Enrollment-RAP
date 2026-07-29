@@ -1,0 +1,6 @@
+@EndUserText.label: 'Service Definition - CUTM Enrollment'
+
+define service ZCUTM_SD_ENROLLMENT_108 {
+  expose ZC_CUTMEnrollment_108 as Enrollment;
+  expose ZC_CUTMSubject_108    as Subject;
+}

@@ -1,0 +1,11 @@
+Service Binding Details:
+------------------------
+Name         : ZCUTM_SB_ENROLLMENT_108
+Description  : Service Binding for CUTM Enrollment
+Binding Type : OData V4 - UI
+Service Def  : ZCUTM_SD_ENROLLMENT_108
+
+Steps:
+1. Create Service Binding in ADT
+2. Click Publish
+3. Click Preview on Enrollment entity
