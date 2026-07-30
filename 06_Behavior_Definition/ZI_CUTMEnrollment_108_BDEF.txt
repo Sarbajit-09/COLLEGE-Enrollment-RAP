@@ -1,0 +1,98 @@
+managed implementation in class ZBP_CUTMEnrollment_108 unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZI_CUTMEnrollment_108 alias Enrollment
+persistent table zcutm_enroll
+draft table zcutm_enroll_d
+lock master total etag LastChangedAt
+authorization master ( global )
+etag master LocalLastChangedAt
+{
+  create;
+  update;
+  delete;
+
+  draft action Edit;
+  draft action Activate;
+  draft action Discard;
+  draft action Resume;
+  draft determine action Prepare;
+
+  association _Subject { create; with draft; }
+
+  field ( readonly )          EnrollmentId;
+  field ( readonly : update ) StudentId, DepartmentId, ProgramCode;
+
+  " Determinations
+  determination setDefaultStatus      on save   { create; }
+  determination calculateTotalCredits on modify { field TotalCredits; }
+  determination calculateAnnualFee    on modify { field ProgramCode; }
+
+  " Validations
+  validation validateStudent       on save { create; update; }
+  validation validateCreditLimit   on save { create; update; }
+  validation validateSemesterDates on save { create; update; }
+  validation validateCourseExists  on save { create; update; }
+  validation validateNoDuplicate   on save { create; update; }
+  validation validateProgramDept   on save { create; update; }
+
+  " Actions
+  action ( precheck ) approveEnrollment result [1] $self;
+  action ( precheck ) rejectEnrollment  result [1] $self;
+  action submitEnrollment               result [1] $self;
+
+  mapping for zcutm_enroll
+  {
+    EnrollmentId       = enrollment_id;
+    StudentId          = student_id;
+    DepartmentId       = department_id;
+    ProgramCode        = program_code;
+    Semester           = semester;
+    AcadYear           = acad_year;
+    AnnualFee          = annual_fee;
+    CurrencyCode       = currency_code;
+    TotalCredits       = total_credits;
+    Status             = status;
+    RejectReason       = reject_reason;
+    SemStart           = sem_start;
+    SemEnd             = sem_end;
+    CreatedBy          = created_by;
+    CreatedAt          = created_at;
+    LastChangedBy      = last_changed_by;
+    LastChangedAt      = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}
+
+define behavior for ZI_CUTMSubject_108 alias Subject
+persistent table zcutm_subject
+draft table zcutm_subject_d
+lock dependent by _Enrollment
+authorization dependent by _Enrollment
+etag master LocalLastChangedAt
+{
+  update;
+  delete;
+
+  association _Enrollment { with draft; }
+
+  field ( readonly ) EnrollmentId, SubjectId;
+
+  mapping for zcutm_subject
+  {
+    EnrollmentId       = enrollment_id;
+    SubjectId          = subject_id;
+    CourseCode         = course_code;
+    CourseName         = course_name;
+    SchoolId           = school_id;
+    Credits            = credits;
+    SubjectType        = subject_type;
+    SubjectStatus      = subject_status;
+    Grade              = grade;
+    FacultyId          = faculty_id;
+    ClassRoom          = class_room;
+    LastChangedAt      = last_changed_at;
+    LocalLastChangedAt = local_last_changed_at;
+  }
+}
