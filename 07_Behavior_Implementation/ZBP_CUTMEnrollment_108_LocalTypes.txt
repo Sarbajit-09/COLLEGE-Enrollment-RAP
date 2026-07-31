@@ -1,0 +1,751 @@
+CLASS lhc_enrollment DEFINITION
+  INHERITING FROM cl_abap_behavior_handler.
+
+  PRIVATE SECTION.
+
+    " Actions
+    METHODS approveenrollment FOR MODIFY
+      IMPORTING keys FOR ACTION
+        Enrollment~approveEnrollment RESULT result.
+
+    METHODS rejectenrollment FOR MODIFY
+      IMPORTING keys FOR ACTION
+        Enrollment~rejectEnrollment RESULT result.
+
+    METHODS submitenrollment FOR MODIFY
+      IMPORTING keys FOR ACTION
+        Enrollment~submitEnrollment RESULT result.
+
+    " Determinations
+    METHODS setdefaultstatus FOR DETERMINE ON SAVE
+      IMPORTING keys FOR
+        Enrollment~setDefaultStatus.
+
+    METHODS calculatetotalcredits FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR
+        Enrollment~calculateTotalCredits.
+
+    METHODS calculateannualfee FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR
+        Enrollment~calculateAnnualFee.
+
+    " Validations
+    METHODS validatestudent FOR VALIDATE ON SAVE
+      IMPORTING keys FOR
+        Enrollment~validateStudent.
+
+    METHODS validatecreditlimit FOR VALIDATE ON SAVE
+      IMPORTING keys FOR
+        Enrollment~validateCreditLimit.
+
+    METHODS validatesemesterdates FOR VALIDATE ON SAVE
+      IMPORTING keys FOR
+        Enrollment~validateSemesterDates.
+
+    METHODS validatecourseexists FOR VALIDATE ON SAVE
+      IMPORTING keys FOR
+        Enrollment~validateCourseExists.
+
+    METHODS validatenoduplicates FOR VALIDATE ON SAVE
+      IMPORTING keys FOR
+        Enrollment~validateNoDuplicate.
+
+    METHODS validateprogramdept FOR VALIDATE ON SAVE
+      IMPORTING keys FOR
+        Enrollment~validateProgramDept.
+
+    " Authorization
+    METHODS get_global_authorizations
+      FOR GLOBAL AUTHORIZATION
+      IMPORTING
+        REQUEST requested_authorizations FOR Enrollment
+      RESULT result.
+
+ENDCLASS.
+
+
+CLASS lhc_enrollment IMPLEMENTATION.
+
+  "------------------------------------------------------------
+  " AUTHORIZATION
+  "------------------------------------------------------------
+  METHOD get_global_authorizations.
+    result-%create                   = if_abap_behv=>auth-allowed.
+    result-%update                   = if_abap_behv=>auth-allowed.
+    result-%delete                   = if_abap_behv=>auth-allowed.
+    result-%action-approveEnrollment = if_abap_behv=>auth-allowed.
+    result-%action-rejectEnrollment  = if_abap_behv=>auth-allowed.
+    result-%action-submitEnrollment  = if_abap_behv=>auth-allowed.
+    result-%action-Edit              = if_abap_behv=>auth-allowed.
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " DETERMINATION: Set Default Status = 'O' (Open)
+  "------------------------------------------------------------
+  METHOD setdefaultstatus.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( Status )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    DATA lt_update TYPE TABLE FOR UPDATE
+      ZI_CUTMEnrollment_108\\Enrollment.
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+      IF ls_enroll-Status IS INITIAL.
+        APPEND VALUE #(
+          %tky   = ls_enroll-%tky
+          Status = 'O'
+        ) TO lt_update.
+      ENDIF.
+    ENDLOOP.
+
+    IF lt_update IS NOT INITIAL.
+      MODIFY ENTITIES OF ZI_CUTMEnrollment_108
+        IN LOCAL MODE
+        ENTITY Enrollment
+          UPDATE FIELDS ( Status )
+          WITH lt_update
+        REPORTED DATA(lt_reported).
+    ENDIF.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " DETERMINATION: Calculate Total Credits from subjects
+  "------------------------------------------------------------
+  METHOD calculatetotalcredits.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        BY \_Subject ALL FIELDS
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_subjects).
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( TotalCredits )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    DATA lt_update TYPE TABLE FOR UPDATE
+      ZI_CUTMEnrollment_108\\Enrollment.
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+
+      DATA(lv_total) = REDUCE decfloat34(
+        INIT sum = 0
+        FOR ls IN lt_subjects
+        WHERE ( EnrollmentId = ls_enroll-EnrollmentId )
+        NEXT sum = sum + ls-Credits
+      ).
+
+      APPEND VALUE #(
+        %tky         = ls_enroll-%tky
+        TotalCredits = lv_total
+      ) TO lt_update.
+
+    ENDLOOP.
+
+    IF lt_update IS NOT INITIAL.
+      MODIFY ENTITIES OF ZI_CUTMEnrollment_108
+        IN LOCAL MODE
+        ENTITY Enrollment
+          UPDATE FIELDS ( TotalCredits )
+          WITH lt_update
+        REPORTED DATA(lt_reported).
+    ENDIF.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " DETERMINATION: Calculate Annual Fee from Course table
+  "------------------------------------------------------------
+  METHOD calculateannualfee.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( ProgramCode AnnualFee CurrencyCode )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    DATA lt_update TYPE TABLE FOR UPDATE
+      ZI_CUTMEnrollment_108\\Enrollment.
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+
+      " Read fee from course catalogue
+      SELECT SINGLE annual_fee, currency_code
+        FROM zcutm_course
+        WHERE course_code = @ls_enroll-ProgramCode
+        INTO @DATA(ls_fee).
+
+      IF sy-subrc = 0 AND ls_fee-annual_fee > 0.
+        APPEND VALUE #(
+          %tky         = ls_enroll-%tky
+          AnnualFee    = ls_fee-annual_fee
+          CurrencyCode = ls_fee-currency_code
+        ) TO lt_update.
+      ELSE.
+        " Default fee schedule
+        DATA lv_fee  TYPE p LENGTH 8 DECIMALS 2.
+        DATA lv_curr TYPE abap.cuky VALUE 'INR'.
+
+        CASE ls_enroll-ProgramCode.
+          WHEN 'BTECH_CSE'
+            OR 'BTECH_AIML'
+            OR 'BTECH_CYBER'
+            OR 'BTECH_ECE'
+            OR 'BTECH_EEE'.
+            lv_fee = '185000.00'.
+          WHEN 'BTECH_MECH'
+            OR 'BTECH_CIVIL'
+            OR 'BTECH_MINE'
+            OR 'BTECH_AERO'.
+            lv_fee = '175000.00'.
+          WHEN 'MBA'.
+            lv_fee = '240000.00'.
+          WHEN 'BBA' OR 'BCOM'.
+            lv_fee = '120000.00'.
+          WHEN 'MCA' OR 'BCA'.
+            lv_fee = '150000.00'.
+          WHEN 'BPHARM'.
+            lv_fee = '150000.00'.
+          WHEN 'MPHARM'.
+            lv_fee = '200000.00'.
+          WHEN 'BDES_AUTO'
+            OR 'BDES_PROD'
+            OR 'BDES_GRAPH'
+            OR 'BDES_UIUX'.
+            lv_fee = '250000.00'.
+          WHEN 'BSC_NURS'.
+            lv_fee = '100000.00'.
+          WHEN OTHERS.
+            lv_fee = '80000.00'.
+        ENDCASE.
+
+        APPEND VALUE #(
+          %tky         = ls_enroll-%tky
+          AnnualFee    = lv_fee
+          CurrencyCode = lv_curr
+        ) TO lt_update.
+      ENDIF.
+
+    ENDLOOP.
+
+    IF lt_update IS NOT INITIAL.
+      MODIFY ENTITIES OF ZI_CUTMEnrollment_108
+        IN LOCAL MODE
+        ENTITY Enrollment
+          UPDATE FIELDS ( AnnualFee CurrencyCode )
+          WITH lt_update
+        REPORTED DATA(lt_reported).
+    ENDIF.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " VALIDATION: Student must exist in ZCUTM_STUDENT
+  "------------------------------------------------------------
+  METHOD validatestudent.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( StudentId )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+
+      IF ls_enroll-StudentId IS INITIAL.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky               = ls_enroll-%tky
+          %state_area        = 'VALIDATE_STUDENT'
+          %msg               = new_message_with_text(
+                                 severity = if_abap_behv_message=>severity-error
+                                 text     = 'Student ID is mandatory' )
+          %element-StudentId = if_abap_behv=>mk-on
+        ) TO reported-enrollment.
+        CONTINUE.
+      ENDIF.
+
+      SELECT SINGLE student_id
+        FROM zcutm_student
+        WHERE student_id = @ls_enroll-StudentId
+        INTO @DATA(lv_found).
+
+      IF sy-subrc <> 0.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky               = ls_enroll-%tky
+          %state_area        = 'VALIDATE_STUDENT'
+          %msg               = new_message_with_text(
+                                 severity = if_abap_behv_message=>severity-error
+                                 text     = |Student { ls_enroll-StudentId
+                                             } not found in student master| )
+          %element-StudentId = if_abap_behv=>mk-on
+        ) TO reported-enrollment.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " VALIDATION: Credits must be between 12 and 30
+  "------------------------------------------------------------
+  METHOD validatecreditlimit.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( TotalCredits )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+
+      IF ls_enroll-TotalCredits > 30.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky                  = ls_enroll-%tky
+          %state_area           = 'VALIDATE_CREDITS'
+          %msg                  = new_message_with_text(
+                                    severity = if_abap_behv_message=>severity-error
+                                    text     = 'Total credits cannot exceed 30 per semester' )
+          %element-TotalCredits = if_abap_behv=>mk-on
+        ) TO reported-enrollment.
+
+      ELSEIF ls_enroll-TotalCredits > 0
+         AND ls_enroll-TotalCredits < 12.
+        APPEND VALUE #(
+          %tky                  = ls_enroll-%tky
+          %state_area           = 'VALIDATE_CREDITS'
+          %msg                  = new_message_with_text(
+                                    severity = if_abap_behv_message=>severity-warning
+                                    text     = 'Total credits are below minimum 12 for the semester' )
+          %element-TotalCredits = if_abap_behv=>mk-on
+        ) TO reported-enrollment.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " VALIDATION: Semester Start must be before End
+  "------------------------------------------------------------
+  METHOD validatesemesterdates.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( SemStart SemEnd )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+
+      IF ls_enroll-SemStart IS INITIAL
+      OR ls_enroll-SemEnd   IS INITIAL.
+        APPEND VALUE #(
+          %tky        = ls_enroll-%tky
+          %state_area = 'VALIDATE_DATES'
+          %msg        = new_message_with_text(
+                          severity = if_abap_behv_message=>severity-warning
+                          text     = 'Semester start and end dates should be filled' )
+        ) TO reported-enrollment.
+        CONTINUE.
+      ENDIF.
+
+      IF ls_enroll-SemStart >= ls_enroll-SemEnd.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky              = ls_enroll-%tky
+          %state_area       = 'VALIDATE_DATES'
+          %msg              = new_message_with_text(
+                                severity = if_abap_behv_message=>severity-error
+                                text     = 'Semester start date must be before end date' )
+          %element-SemStart = if_abap_behv=>mk-on
+          %element-SemEnd   = if_abap_behv=>mk-on
+        ) TO reported-enrollment.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " VALIDATION: Course must exist in ZCUTM_COURSE catalogue
+  "------------------------------------------------------------
+  METHOD validatecourseexists.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        BY \_Subject ALL FIELDS
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_subjects).
+
+    LOOP AT lt_subjects INTO DATA(ls_subj).
+
+      SELECT SINGLE course_code
+        FROM zcutm_course
+        WHERE course_code = @ls_subj-CourseCode
+        INTO @DATA(lv_found).
+
+      IF sy-subrc <> 0.
+
+        READ ENTITIES OF ZI_CUTMEnrollment_108
+          IN LOCAL MODE
+          ENTITY Enrollment
+            FIELDS ( EnrollmentId )
+            WITH VALUE #(
+              ( EnrollmentId = ls_subj-EnrollmentId ) )
+          RESULT DATA(lt_parent).
+
+        LOOP AT lt_parent INTO DATA(ls_parent).
+          APPEND VALUE #(
+            %tky = ls_parent-%tky
+          ) TO failed-enrollment.
+          APPEND VALUE #(
+            %tky        = ls_parent-%tky
+            %state_area = 'VALIDATE_COURSE'
+            %msg        = new_message_with_text(
+                            severity = if_abap_behv_message=>severity-error
+                            text     = |Course { ls_subj-CourseCode
+                                        } not found in CUTM catalogue| )
+          ) TO reported-enrollment.
+        ENDLOOP.
+
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " VALIDATION: No duplicate course in same enrollment
+  "------------------------------------------------------------
+  METHOD validatenoduplicates.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        BY \_Subject ALL FIELDS
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_subjects).
+
+    LOOP AT keys INTO DATA(ls_key).
+
+      DATA lt_courses TYPE SORTED TABLE OF
+        zcutm_course WITH UNIQUE KEY course_code.
+
+      LOOP AT lt_subjects INTO DATA(ls_subj)
+        WHERE EnrollmentId = ls_key-EnrollmentId.
+
+        INSERT VALUE #(
+          course_code = ls_subj-CourseCode
+        ) INTO TABLE lt_courses.
+
+        IF sy-subrc <> 0.
+          APPEND VALUE #( %tky = ls_key-%tky )
+            TO failed-enrollment.
+          APPEND VALUE #(
+            %tky        = ls_key-%tky
+            %state_area = 'VALIDATE_DUPLICATE'
+            %msg        = new_message_with_text(
+                            severity = if_abap_behv_message=>severity-error
+                            text     = |Course { ls_subj-CourseCode
+                                        } is already added to this enrollment| )
+          ) TO reported-enrollment.
+        ENDIF.
+
+      ENDLOOP.
+
+      CLEAR lt_courses.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " VALIDATION: Program must match Department
+  "------------------------------------------------------------
+  METHOD validateprogramdept.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( DepartmentId ProgramCode )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+
+      IF ls_enroll-ProgramCode  IS INITIAL OR
+         ls_enroll-DepartmentId IS INITIAL.
+        CONTINUE.
+      ENDIF.
+
+      DATA(lv_valid) = abap_true.
+
+      CASE ls_enroll-DepartmentId.
+        WHEN 'SoEaT'.
+          IF ls_enroll-ProgramCode <> 'BTECH_CSE'  AND
+             ls_enroll-ProgramCode <> 'BTECH_AIML' AND
+             ls_enroll-ProgramCode <> 'BTECH_CYBER' AND
+             ls_enroll-ProgramCode <> 'BTECH_MECH' AND
+             ls_enroll-ProgramCode <> 'BTECH_CIVIL' AND
+             ls_enroll-ProgramCode <> 'BTECH_EEE'  AND
+             ls_enroll-ProgramCode <> 'BTECH_ECE'  AND
+             ls_enroll-ProgramCode <> 'BTECH_MINE' AND
+             ls_enroll-ProgramCode <> 'BTECH_AERO' AND
+             ls_enroll-ProgramCode <> 'BCA'         AND
+             ls_enroll-ProgramCode <> 'MCA'         AND
+             ls_enroll-ProgramCode <> 'MTECH'.
+            lv_valid = abap_false.
+          ENDIF.
+        WHEN 'SoM'.
+          IF ls_enroll-ProgramCode <> 'MBA'     AND
+             ls_enroll-ProgramCode <> 'BBA'     AND
+             ls_enroll-ProgramCode <> 'BBA_IND' AND
+             ls_enroll-ProgramCode <> 'BCOM'    AND
+             ls_enroll-ProgramCode <> 'BAMS'.
+            lv_valid = abap_false.
+          ENDIF.
+        WHEN 'SoPLS'.
+          IF ls_enroll-ProgramCode <> 'BPHARM' AND
+             ls_enroll-ProgramCode <> 'MPHARM' AND
+             ls_enroll-ProgramCode <> 'DPHARM'.
+            lv_valid = abap_false.
+          ENDIF.
+        WHEN 'SoDS'.
+          IF ls_enroll-ProgramCode <> 'BDES_AUTO'  AND
+             ls_enroll-ProgramCode <> 'BDES_PROD'  AND
+             ls_enroll-ProgramCode <> 'BDES_GRAPH' AND
+             ls_enroll-ProgramCode <> 'BDES_UIUX'.
+            lv_valid = abap_false.
+          ENDIF.
+        WHEN 'SoN'.
+          IF ls_enroll-ProgramCode <> 'BSC_NURS'.
+            lv_valid = abap_false.
+          ENDIF.
+        WHEN 'SoL'.
+          IF ls_enroll-ProgramCode <> 'BBA_LLB' AND
+             ls_enroll-ProgramCode <> 'BA_LLB'  AND
+             ls_enroll-ProgramCode <> 'LLB'     AND
+             ls_enroll-ProgramCode <> 'LLM'.
+            lv_valid = abap_false.
+          ENDIF.
+        WHEN 'SoFS'.
+          IF ls_enroll-ProgramCode <> 'BSC_FOR'   AND
+             ls_enroll-ProgramCode <> 'MSC_FOR'   AND
+             ls_enroll-ProgramCode <> 'MSC_CYBER'.
+            lv_valid = abap_false.
+          ENDIF.
+        WHEN OTHERS.
+          lv_valid = abap_true.
+      ENDCASE.
+
+      IF lv_valid = abap_false.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky                  = ls_enroll-%tky
+          %state_area           = 'VALIDATE_PROG_DEPT'
+          %msg                  = new_message_with_text(
+                                    severity = if_abap_behv_message=>severity-error
+                                    text     = |Program { ls_enroll-ProgramCode
+                                                } is not offered by { ls_enroll-DepartmentId }| )
+          %element-ProgramCode  = if_abap_behv=>mk-on
+          %element-DepartmentId = if_abap_behv=>mk-on
+        ) TO reported-enrollment.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " ACTION: Submit Enrollment O → S
+  "------------------------------------------------------------
+  METHOD submitenrollment.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( Status )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    DATA lt_update TYPE TABLE FOR UPDATE
+      ZI_CUTMEnrollment_108\\Enrollment.
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+      IF ls_enroll-Status = 'O'.
+        APPEND VALUE #(
+          %tky   = ls_enroll-%tky
+          Status = 'S'
+        ) TO lt_update.
+      ELSE.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky        = ls_enroll-%tky
+          %state_area = 'ACTION_SUBMIT'
+          %msg        = new_message_with_text(
+                          severity = if_abap_behv_message=>severity-error
+                          text     = 'Only Open enrollments can be Submitted' )
+        ) TO reported-enrollment.
+      ENDIF.
+    ENDLOOP.
+
+    IF lt_update IS NOT INITIAL.
+      MODIFY ENTITIES OF ZI_CUTMEnrollment_108
+        IN LOCAL MODE
+        ENTITY Enrollment
+          UPDATE FIELDS ( Status )
+          WITH lt_update
+        REPORTED DATA(lt_rep).
+    ENDIF.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment ALL FIELDS
+      WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_result).
+
+    result = VALUE #(
+      FOR ls IN lt_result
+      ( %tky = ls-%tky %param = ls )
+    ).
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " ACTION: Approve Enrollment S → A
+  "------------------------------------------------------------
+  METHOD approveenrollment.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( Status )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    DATA lt_update TYPE TABLE FOR UPDATE
+      ZI_CUTMEnrollment_108\\Enrollment.
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+      IF ls_enroll-Status = 'S'.
+        APPEND VALUE #(
+          %tky   = ls_enroll-%tky
+          Status = 'A'
+        ) TO lt_update.
+      ELSE.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky        = ls_enroll-%tky
+          %state_area = 'ACTION_APPROVE'
+          %msg        = new_message_with_text(
+                          severity = if_abap_behv_message=>severity-error
+                          text     = 'Only Submitted enrollments can be Approved' )
+        ) TO reported-enrollment.
+      ENDIF.
+    ENDLOOP.
+
+    IF lt_update IS NOT INITIAL.
+      MODIFY ENTITIES OF ZI_CUTMEnrollment_108
+        IN LOCAL MODE
+        ENTITY Enrollment
+          UPDATE FIELDS ( Status )
+          WITH lt_update
+        REPORTED DATA(lt_rep).
+    ENDIF.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment ALL FIELDS
+      WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_result).
+
+    result = VALUE #(
+      FOR ls IN lt_result
+      ( %tky = ls-%tky %param = ls )
+    ).
+
+  ENDMETHOD.
+
+  "------------------------------------------------------------
+  " ACTION: Reject Enrollment S → R
+  "------------------------------------------------------------
+  METHOD rejectenrollment.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment
+        FIELDS ( Status )
+        WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_enrollments).
+
+    DATA lt_update TYPE TABLE FOR UPDATE
+      ZI_CUTMEnrollment_108\\Enrollment.
+
+    LOOP AT lt_enrollments INTO DATA(ls_enroll).
+      IF ls_enroll-Status = 'S'.
+        APPEND VALUE #(
+          %tky         = ls_enroll-%tky
+          Status       = 'R'
+          RejectReason = 'Rejected by approver'
+        ) TO lt_update.
+      ELSE.
+        APPEND VALUE #( %tky = ls_enroll-%tky )
+          TO failed-enrollment.
+        APPEND VALUE #(
+          %tky        = ls_enroll-%tky
+          %state_area = 'ACTION_REJECT'
+          %msg        = new_message_with_text(
+                          severity = if_abap_behv_message=>severity-error
+                          text     = 'Only Submitted enrollments can be Rejected' )
+        ) TO reported-enrollment.
+      ENDIF.
+    ENDLOOP.
+
+    IF lt_update IS NOT INITIAL.
+      MODIFY ENTITIES OF ZI_CUTMEnrollment_108
+        IN LOCAL MODE
+        ENTITY Enrollment
+          UPDATE FIELDS ( Status RejectReason )
+          WITH lt_update
+        REPORTED DATA(lt_rep).
+    ENDIF.
+
+    READ ENTITIES OF ZI_CUTMEnrollment_108
+      IN LOCAL MODE
+      ENTITY Enrollment ALL FIELDS
+      WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_result).
+
+    result = VALUE #(
+      FOR ls IN lt_result
+      ( %tky = ls-%tky %param = ls )
+    ).
+
+  ENDMETHOD.
+
+ENDCLASS.
