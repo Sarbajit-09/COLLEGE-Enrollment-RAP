@@ -1,0 +1,46 @@
+@Metadata.layer: #CORE
+
+annotate view ZC_CUTMSubject_108 with
+{
+
+  @UI.lineItem:       [{ position: 10, label: 'Subject ID' }]
+  @UI.identification: [{ position: 10, label: 'Subject ID' }]
+  SubjectId;
+
+  @UI.lineItem:       [{ position: 20, label: 'Course Code' }]
+  @UI.identification: [{ position: 20, label: 'Course Code' }]
+  CourseCode;
+
+  @UI.lineItem:       [{ position: 30, label: 'Course Name' }]
+  @UI.identification: [{ position: 30, label: 'Course Name' }]
+  CourseName;
+
+  @UI.lineItem:       [{ position: 40, label: 'School' }]
+  @UI.identification: [{ position: 40, label: 'School ID' }]
+  SchoolId;
+
+  @UI.lineItem:       [{ position: 50, label: 'Credits' }]
+  @UI.identification: [{ position: 50, label: 'Credits' }]
+  Credits;
+
+  @UI.lineItem:       [{ position: 60, label: 'Type' }]
+  @UI.identification: [{ position: 60, label: 'Subject Type' }]
+  SubjectType;
+
+  @UI.lineItem:       [{ position: 70, label: 'Status' }]
+  @UI.identification: [{ position: 70, label: 'Subject Status' }]
+  SubjectStatus;
+
+  @UI.lineItem:       [{ position: 80, label: 'Grade' }]
+  @UI.identification: [{ position: 80, label: 'Grade' }]
+  Grade;
+
+  @UI.lineItem:       [{ position: 90, label: 'Faculty ID' }]
+  @UI.identification: [{ position: 90, label: 'Faculty ID' }]
+  FacultyId;
+
+  @UI.lineItem:       [{ position: 100, label: 'Class Room' }]
+  @UI.identification: [{ position: 100, label: 'Class Room' }]
+  ClassRoom;
+
+}

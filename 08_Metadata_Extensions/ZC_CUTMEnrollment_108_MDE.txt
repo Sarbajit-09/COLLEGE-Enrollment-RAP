@@ -1,0 +1,116 @@
+@Metadata.layer: #CORE
+@UI.headerInfo: {
+  typeName:       'Enrollment',
+  typeNamePlural: 'Enrollments',
+  title:          { type: #STANDARD, value: 'EnrollmentId' },
+  description:    { type: #STANDARD, value: 'StudentId'    }
+}
+
+annotate view ZC_CUTMEnrollment_108 with
+{
+
+  @UI.facet: [
+    { id: 'GeneralInfo',
+      type: #COLLECTION,
+      label: 'General Information',
+      position: 10 },
+    { id: 'BasicData',
+      parentId: 'GeneralInfo',
+      type: #IDENTIFICATION_REFERENCE,
+      label: 'Enrollment Details',
+      position: 10 },
+    { id: 'SubjectItems',
+      type: #LINEITEM_REFERENCE,
+      label: 'Registered Subjects',
+      position: 20,
+      targetElement: '_Subject' }
+  ]
+
+  @UI.lineItem: [
+    { type: #FOR_ACTION,
+      dataAction: 'submitEnrollment',
+      label: 'Submit',
+      position: 10,
+      emphasized: true },
+    { position: 10, label: 'Enrollment ID' }
+  ]
+  @UI.identification: [
+    { type: #FOR_ACTION,
+      dataAction: 'submitEnrollment',
+      label: 'Submit Enrollment',
+      position: 10 },
+    { type: #FOR_ACTION,
+      dataAction: 'approveEnrollment',
+      label: 'Approve',
+      position: 20 },
+    { type: #FOR_ACTION,
+      dataAction: 'rejectEnrollment',
+      label: 'Reject',
+      position: 30 },
+    { position: 10, label: 'Enrollment ID' }
+  ]
+  @UI.selectionField: [{ position: 10 }]
+  EnrollmentId;
+
+  @UI.lineItem:       [{ position: 20, label: 'Student ID' }]
+  @UI.identification: [{ position: 20, label: 'Student ID' }]
+  @UI.selectionField: [{ position: 20 }]
+  StudentId;
+
+  @UI.lineItem:       [{ position: 30, label: 'Department' }]
+  @UI.identification: [{ position: 30, label: 'Department' }]
+  @UI.selectionField: [{ position: 30 }]
+  DepartmentId;
+
+  @UI.lineItem:       [{ position: 40, label: 'Program Code' }]
+  @UI.identification: [{ position: 40, label: 'Program Code' }]
+  @UI.selectionField: [{ position: 40 }]
+  ProgramCode;
+
+  @UI.lineItem:       [{ position: 50, label: 'Semester' }]
+  @UI.identification: [{ position: 50, label: 'Semester' }]
+  Semester;
+
+  @UI.lineItem:       [{ position: 60, label: 'Academic Year' }]
+  @UI.identification: [{ position: 60, label: 'Academic Year' }]
+  AcadYear;
+
+  @UI.lineItem:       [{ position: 70, label: 'Annual Fee' }]
+  @UI.identification: [{ position: 70, label: 'Annual Fee' }]
+  AnnualFee;
+
+  @UI.identification: [{ position: 80, label: 'Currency' }]
+  CurrencyCode;
+
+  @UI.lineItem:       [{ position: 80, label: 'Total Credits' }]
+  @UI.identification: [{ position: 90, label: 'Total Credits' }]
+  TotalCredits;
+
+  @UI.lineItem: [{
+    position: 90,
+    label: 'Status',
+    criticality: 'StatusCriticality'
+  }]
+  @UI.identification: [{ position: 100, label: 'Status' }]
+  @UI.selectionField: [{ position: 50 }]
+  Status;
+
+  @UI.identification: [{ position: 110, label: 'Reject Reason' }]
+  RejectReason;
+
+  @UI.identification: [{ position: 120, label: 'Semester Start' }]
+  SemStart;
+
+  @UI.identification: [{ position: 130, label: 'Semester End' }]
+  SemEnd;
+
+  @UI.identification: [{ position: 140, label: 'Created By' }]
+  CreatedBy;
+
+  @UI.identification: [{ position: 150, label: 'Created At' }]
+  CreatedAt;
+
+  @UI.identification: [{ position: 160, label: 'Last Changed By' }]
+  LastChangedBy;
+
+}
