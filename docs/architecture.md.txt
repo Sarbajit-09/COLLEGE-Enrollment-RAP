@@ -1,0 +1,66 @@
+# CUTM Enrollment System — Architecture
+
+## Layer Diagram
+
+┌─────────────────────────────────────────────┐
+│ SAP Fiori Elements UI │
+│ (List Report + Object Page) │
+└────────────────────┬────────────────────────┘
+│ OData V4
+┌────────────────────▼────────────────────────┐
+│ Service Binding (OData V4) │
+│ ZCUTM_SB_ENROLLMENT_108 │
+└────────────────────┬────────────────────────┘
+│
+┌────────────────────▼────────────────────────┐
+│ Service Definition │
+│ ZCUTM_SD_ENROLLMENT_108 │
+└────────────────────┬────────────────────────┘
+│
+┌────────────────────▼────────────────────────┐
+│ Projection Layer (Consumption) │
+│ ZC_CUTMEnrollment_108 (Root) │
+│ ZC_CUTMSubject_108 (Child) │
+│ + Metadata Extensions (UI Annotations) │
+│ + Projection BDEF │
+└────────────────────┬────────────────────────┘
+│
+┌────────────────────▼────────────────────────┐
+│ Interface Layer (Base) │
+│ ZI_CUTMEnrollment_108 (Root View) │
+│ ZI_CUTMSubject_108 (Child View) │
+│ + Interface BDEF │
+│ + Behavior Implementation Class │
+└────────────────────┬────────────────────────┘
+│
+┌────────────────────▼────────────────────────┐
+│ Database Layer │
+│ ZCUTM_ENROLL (Header Table) │
+│ ZCUTM_SUBJECT (Line Item Table) │
+│ ZCUTM_ENROLL_D (Draft Header) │
+│ ZCUTM_SUBJECT_D(Draft Line Item) │
+│ ZCUTM_STUDENT (Student Master) │
+│ ZCUTM_DEPT (Department Master) │
+│ ZCUTM_COURSE (Course Catalogue) │
+└─────────────────────────────────────────────┘
+
+## Entity Relationship
+ZCUTM_ENROLL (1)
+│
+│ composition [0..]
+│
+ZCUTM_SUBJECT ()
+
+
+## Status Flow
+Open (O)
+│
+│ submitEnrollment
+▼
+Submitted (S)
+│ │
+│ approve │ reject
+▼ ▼
+Approved Rejected
+(A) (R)
+
